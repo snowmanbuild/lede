@@ -10,6 +10,9 @@
 name: OpenWrtBuild-ACRH17
 
 on:
+  push:
+    branches: 
+      - master
 #  schedule:
 #    - cron: 0 20 * * *
 #  push:
@@ -72,6 +75,7 @@ jobs:
           cat >> .config <<EOF
           # CONFIG_PACKAGE_autosamba is not set
           # CONFIG_PACKAGE_luci-app-samba is not set
+          CONFIG_PACKAGE_luci-app-accesscontrol=y
           CONFIG_PACKAGE_luci-app-aria2=y
           CONFIG_PACKAGE_luci-app-baidupcs-web=y
           CONFIG_PACKAGE_luci-app-cifs-mount=y
