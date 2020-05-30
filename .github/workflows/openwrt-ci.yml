@@ -7,14 +7,14 @@
 # <https://github.com/KFERMercer/OpenWrt-CI>
 # 
 
-name: OpenWrt-CI
+name: OpenWrtBuild-ACRH17
 
 on:
-  schedule:
-    - cron: 0 20 * * *
-  push:
-    tags:
-      - '*'
+#  schedule:
+#    - cron: 0 20 * * *
+#  push:
+#    tags:
+#      - '*'
 
 jobs:
 
@@ -25,7 +25,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@master
         with:
           ref: master
 
@@ -45,17 +45,74 @@ jobs:
 
       - name: Update feeds
         run: |
-          sed -i 's/\"#src-git\"/\"src-git\"/g' ./feeds.conf.default
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
       - name: Generate configuration file
-        run: make defconfig
+        run: |
+          rm -f ./.config*
+          touch ./.config
+          #
+          # ========================固件定制部分开始========================
+          #
+          
+          #编译acrh17固件
+          cat >> .config <<EOF
+          CONFIG_TARGET_ipq40xx=y
+          CONFIG_TARGET_ipq40xx_DEVICE_asus_rt-acrh17=y
+          CONFIG_TARGET_BOARD="ipq40xx"
+          EOF
+          
+          #多文件系统支持
+          # cat >> .config <<EOF
+          # CONFIG_PACKAGE_antfs-mount=y
+          # EOF
+          
+          #luci插件自定义
+          cat >> .config <<EOF
+          # CONFIG_PACKAGE_autosamba is not set
+          # CONFIG_PACKAGE_luci-app-samba is not set
+          CONFIG_PACKAGE_luci-app-aria2=y
+          CONFIG_PACKAGE_luci-app-baidupcs-web=y
+          CONFIG_PACKAGE_luci-app-cifs-mount=y
+          CONFIG_PACKAGE_luci-app-cifsd=y
+          CONFIG_PACKAGE_luci-app-diskman=y
+          CONFIG_PACKAGE_luci-app-frpc=y
+          CONFIG_PACKAGE_luci-app-guest-wifi=y
+          CONFIG_PACKAGE_luci-app-hd-idle=y
+          CONFIG_PACKAGE_luci-app-kodexplorer=y
+          CONFIG_PACKAGE_luci-app-qbittorrent=y
+          CONFIG_PACKAGE_luci-app-ttyd=y
+          CONFIG_PACKAGE_luci-app-transmission=y
+          CONFIG_PACKAGE_luci-app-uhttpd=y
+          CONFIG_PACKAGE_luci-app-unblockmusic=y
+          CONFIG_PACKAGE_luci-app-usb-printer=y
+          CONFIG_UnblockNeteaseMusic_Go=y
+          CONFIG_UnblockNeteaseMusic_NodeJS=y
+          CONFIG_PACKAGE_luci-app-ssr-plus=y
+          CONFIG_PACKAGE_luci-app-ssr-plus_INCLUDE_V2ray_plugin=y
+          CONFIG_PACKAGE_luci-app-ssr-plus_INCLUDE_V2ray=y
+          CONFIG_PACKAGE_luci-app-ssr-plus_INCLUDE_Trojan=y
+          CONFIG_PACKAGE_luci-app-ssr-plus_INCLUDE_Redsocks2=y
+          CONFIG_PACKAGE_luci-app-ssr-plus_INCLUDE_Kcptun=y
+          CONFIG_PACKAGE_luci-app-ssr-plus_INCLUDE_ShadowsocksR_Server=y
+          CONFIG_PACKAGE_luci-app-wifischedule=y
+          CONFIG_PACKAGE_luci-app-wrtbwmon=y
+          # CONFIG_PACKAGE_libwebsockets-openssl is not set
+          EOF
+          
+          # 
+          # ========================固件定制部分结束========================
+          # 
+          
+          sed -i 's/^[ \t]*//g' ./.config
+          make defconfig
 
       - name: Make download
         run: |
-          make download -j8
-          find dl -size -1024c -exec rm -f {} \;
+          make download -j8 || make download -j1 V=s
+          find ./dl/ -size -1024c -exec rm -f {} \;
+          df -h
 
       - name: Compile firmware
         run: |
@@ -72,30 +129,14 @@ jobs:
       - name: Prepare artifact
         run: find ./bin/targets/ -type d -name "packages" | xargs rm -rf {}
 
-      - name: Upload artifact
+      - name: Upload config.seed
+        uses: actions/upload-artifact@master
+        with:
+          name: config.seed
+          path: ./bin/targets/*/*/config.seed
+
+      - name: Upload firmware
         uses: actions/upload-artifact@master
         with:
           name: OpenWrt_firmware
           path: ./bin/targets/
-
-      - name: Create release
-        if: github.event == 'push'
-        id: create_release
-        uses: actions/create-release@v1.0.1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: ${{ github.ref }}
-          draft: false
-          prerelease: false      
-
-      - name: Upload release asset
-        if: github.event == 'push'
-        id: upload-release-asset 
-        uses: actions/upload-release-asset@v1.0.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./bin/targets/*/*/
