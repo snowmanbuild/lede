@@ -10,9 +10,11 @@
 name: OpenWrtBuild-ACRH17
 
 on:
-  push:
-    branches: 
-      - master
+  watch:
+    types: started  
+#  push:
+#    branches: 
+#      - master
 #  schedule:
 #    - cron: 0 20 * * *
 #  push:
@@ -70,14 +72,14 @@ jobs:
           EOF
           
           #无线驱动版本选择
-          cat >> .config <<EOF
-          # CONFIG_PACKAGE_kmod-ath10k is not set
-          CONFIG_PACKAGE_kmod-ath10k-ct=y
-          # CONFIG_PACKAGE_ath10k-firmware-qca4019 is not set
-          CONFIG_PACKAGE_ath10k-firmware-qca4019-ct=y
-          # CONFIG_PACKAGE_ath10k-firmware-qca9984 is not set
-          CONFIG_PACKAGE_ath10k-firmware-qca9984-ct=y
-          EOF
+          # cat >> .config <<EOF
+          # # CONFIG_PACKAGE_kmod-ath10k is not set
+          # CONFIG_PACKAGE_kmod-ath10k-ct=y
+          # # CONFIG_PACKAGE_ath10k-firmware-qca4019 is not set
+          # CONFIG_PACKAGE_ath10k-firmware-qca4019-ct=y
+          # # CONFIG_PACKAGE_ath10k-firmware-qca9984 is not set
+          # CONFIG_PACKAGE_ath10k-firmware-qca9984-ct=y
+          # EOF
           
           #luci插件自定义
           cat >> .config <<EOF
@@ -85,7 +87,6 @@ jobs:
           # CONFIG_PACKAGE_luci-app-samba is not set
           CONFIG_PACKAGE_luci-app-accesscontrol=y
           CONFIG_PACKAGE_luci-app-aria2=y
-          CONFIG_PACKAGE_luci-app-baidupcs-web=y
           CONFIG_PACKAGE_luci-app-cifs-mount=y
           CONFIG_PACKAGE_luci-app-cifsd=y
           CONFIG_PACKAGE_luci-app-diskman=y
