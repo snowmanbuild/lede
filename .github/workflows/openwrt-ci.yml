@@ -10,9 +10,9 @@
 name: OpenWrtBuild-ACRH17
 
 on:
-  push:
-    branches: 
-      - master
+#  push:
+#    branches: 
+#      - master
 #  schedule:
 #    - cron: 0 20 * * *
 #  push:
@@ -25,14 +25,15 @@ jobs:
 
     name: Build OpenWrt and release
     runs-on: ubuntu-18.04
+    if: github.event.repository.owner.id == github.event.sender.id
 
     steps:
-      - name: Checkout
+      - name: 校验本地文件
         uses: actions/checkout@master
         with:
           ref: master
 
-      - name: Space cleanup
+      - name: 安装编译环境及空间清理
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
@@ -46,15 +47,17 @@ jobs:
 
           df -h
 
-      - name: Update feeds
+      - name: 更新及安装feeds
         run: |
+          sed -i 's/\"#src-git\"/\"src-git\"/g' ./feeds.conf.default
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: Generate configuration file
+      - name: 生成编译配置文件.config
         run: |
           rm -f ./.config*
           touch ./.config
+          
           #
           # ========================固件定制部分开始========================
           #
@@ -66,10 +69,15 @@ jobs:
           CONFIG_TARGET_BOARD="ipq40xx"
           EOF
           
-          #多文件系统支持
-          # cat >> .config <<EOF
-          # CONFIG_PACKAGE_antfs-mount=y
-          # EOF
+          #无线驱动版本选择
+          cat >> .config <<EOF
+          # CONFIG_PACKAGE_kmod-ath10k is not set
+          CONFIG_PACKAGE_kmod-ath10k-ct=y
+          # CONFIG_PACKAGE_ath10k-firmware-qca4019 is not set
+          CONFIG_PACKAGE_ath10k-firmware-qca4019-ct=y
+          # CONFIG_PACKAGE_ath10k-firmware-qca9984 is not set
+          CONFIG_PACKAGE_ath10k-firmware-qca9984-ct=y
+          EOF
           
           #luci插件自定义
           cat >> .config <<EOF
@@ -112,13 +120,13 @@ jobs:
           sed -i 's/^[ \t]*//g' ./.config
           make defconfig
 
-      - name: Make download
+      - name: 下载编译所需资源
         run: |
           make download -j8 || make download -j1 V=s
           find ./dl/ -size -1024c -exec rm -f {} \;
           df -h
 
-      - name: Compile firmware
+      - name: 编译固件
         run: |
           make -j$(nproc) || make -j1 V=s
           echo "======================="
@@ -130,16 +138,16 @@ jobs:
           du -h --max-depth=1 ./build_dir
           du -h --max-depth=1 ./bin
 
-      - name: Prepare artifact
+      - name: 编译完成准备上传
         run: find ./bin/targets/ -type d -name "packages" | xargs rm -rf {}
 
-      - name: Upload config.seed
+      - name: 上传config.seed
         uses: actions/upload-artifact@master
         with:
           name: config.seed
           path: ./bin/targets/*/*/config.seed
 
-      - name: Upload firmware
+      - name: 上传固件
         uses: actions/upload-artifact@master
         with:
           name: OpenWrt_firmware
